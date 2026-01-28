@@ -235,9 +235,6 @@
         return assignBalanced(districts, numPeople, nameStartIndex);
       }
 
-      const totalSpotsAll = districts.reduce((s, d) => s + d.spots, 0);
-      const targetSpots = totalSpotsAll / numPeople;
-
       const meanLat = withCoord.reduce((s, d) => s + d.lat, 0) / withCoord.length;
       const meanLng = withCoord.reduce((s, d) => s + d.lng, 0) / withCoord.length;
 
@@ -246,20 +243,51 @@
         .sort((x, y) => x.a - y.a)
         .map(x => x.d);
 
-      let gi = 0;
-      for (let idx = 0; idx < ordered.length; idx++) {
-        const d = ordered[idx];
-        const remainingItems = ordered.length - idx;
+      // 近接（角度順）を保ちながら、設置数（spots）の合計ができるだけ均等になるように区切る
+      // 逐次的に「残り合計 / 残り人数」を目標にして分割（重み付き分割の近似）
+      let idx = 0;
+      let remainingSpots = ordered.reduce((s, d) => s + d.spots, 0);
+      for (let gi = 0; gi < numPeople; gi++) {
+        if (idx >= ordered.length) break;
         const remainingGroups = numPeople - gi;
+        const target = remainingSpots / remainingGroups;
 
-        // 現グループが目標を超えたら次へ（ただし残りグループに最低1つずつ残せる場合）
-        if (gi < numPeople - 1 && load[gi].spots >= targetSpots && remainingItems > remainingGroups) {
-          gi++;
+        // 最低1件は入れる。残りグループに最低1件ずつ残せる範囲で、target を超えない限り追加。
+        let groupSpots = 0;
+        while (idx < ordered.length) {
+          const mustLeave = (ordered.length - idx) <= (remainingGroups - 1); // これ以上取ると残りに1件ずつ残せない
+          const next = ordered[idx];
+          const would = groupSpots + next.spots;
+
+          if (groupSpots === 0) {
+            // 空なら必ず1件取る
+          } else if (mustLeave) {
+            break;
+          } else if (would > target) {
+            break;
+          }
+
+          load[gi].spots += next.spots;
+          load[gi].voters += next.voters;
+          load[gi].list.push(next);
+          groupSpots += next.spots;
+          remainingSpots -= next.spots;
+          idx++;
         }
 
-        load[gi].spots += d.spots;
-        load[gi].voters += d.voters;
-        load[gi].list.push(d);
+        // target を大きく超えていない場合は、もう1件だけ追加して均等化（過小割り当て対策）
+        if (gi < numPeople - 1 && idx < ordered.length && (ordered.length - idx) > (remainingGroups - 1)) {
+          const next = ordered[idx];
+          const after = load[gi].spots + next.spots;
+          // 次を入れることで target に近づく場合だけ入れる
+          if (Math.abs(after - target) < Math.abs(load[gi].spots - target)) {
+            load[gi].spots += next.spots;
+            load[gi].voters += next.voters;
+            load[gi].list.push(next);
+            remainingSpots -= next.spots;
+            idx++;
+          }
+        }
       }
 
       // 座標がない地区は、設置数が少ない人に追加
