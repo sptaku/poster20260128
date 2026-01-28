@@ -180,6 +180,16 @@
       <div class="row">
         <input type="number" id="count" min="1" max="99" value="5" />
       </div>
+      <div id="bothCounts" class="row" style="display:none; margin-top: 0.75rem;">
+        <div>
+          <label for="countIchikawa">市川の人数</label>
+          <input type="number" id="countIchikawa" min="1" max="99" value="3" />
+        </div>
+        <div>
+          <label for="countFunabashi">船橋の人数</label>
+          <input type="number" id="countFunabashi" min="1" max="99" value="3" />
+        </div>
+      </div>
       <p id="msg" class="error" style="display:none;"></p>
     </div>
 
@@ -311,8 +321,14 @@
         out.innerHTML = '<p class="loading">データを読み込み中…</p>';
         return;
       }
-      if (numPeople < 1 || numPeople > 50) {
-        msg.textContent = '人数は 1～50 の間で入力してください。';
+      // both のときは個別人数を使う（numPeople は無視）
+      const bothMode = areaKey === 'both';
+      const nIchikawa = bothMode ? (parseInt(document.getElementById('countIchikawa').value, 10) || 0) : (parseInt(numPeople, 10) || 0);
+      const nFunabashi = bothMode ? (parseInt(document.getElementById('countFunabashi').value, 10) || 0) : 0;
+      const totalPeople = bothMode ? (nIchikawa + nFunabashi) : nIchikawa;
+
+      if (totalPeople < 1 || totalPeople > 50) {
+        msg.textContent = '人数は合計 1～50 の間で入力してください。';
         msg.style.display = 'block';
         out.innerHTML = '';
         return;
@@ -352,45 +368,62 @@
       `;
 
       if (areaKey === 'both') {
-        if (numPeople < 2) {
-          msg.textContent = '両方まとめての場合は、市川と船橋を別々の人が担当するため2人以上を入力してください。';
+        if (nIchikawa < 1 || nFunabashi < 1) {
+          msg.textContent = '両方まとめての場合は、市川・船橋それぞれ 1人以上を入力してください。';
           msg.style.display = 'block';
           out.innerHTML = mapLinksHtml;
           return;
         }
         const ichikawa = data.ichikawa_4.districts.map(d => ({ ...d, area: '市川市4区' }));
         const funabashi = data.funabashi_4.districts.map(d => ({ ...d, area: '船橋市4区' }));
-        const totalSpots = data.ichikawa_4.total_spots + data.funabashi_4.total_spots;
-        const nI = Math.max(1, Math.min(numPeople - 1, Math.round(numPeople * data.ichikawa_4.total_spots / totalSpots)));
-        const nF = numPeople - nI;
-        const resultI = assignNearby(ichikawa, Math.min(nI, ichikawa.length), 0);
-        const resultF = assignNearby(funabashi, Math.min(nF, funabashi.length), nI);
+        const resultI = assignNearby(ichikawa, Math.min(nIchikawa, ichikawa.length), 0);
+        const resultF = assignNearby(funabashi, Math.min(nFunabashi, funabashi.length), nIchikawa);
         if (numPeople > ichikawa.length + funabashi.length) {
           msg.textContent = `人数が地区数（${ichikawa.length + funabashi.length}）を超えています。${ichikawa.length + funabashi.length}人以下にしてください。`;
           msg.style.display = 'block';
         }
         out.innerHTML = mapLinksHtml
-          + `<div class="area-section"><div class="area-section-title">市川市4区の割り振り（A〜${String.fromCharCode(64 + nI)}）</div>${resultI.map(personBlock).join('')}</div>`
-          + `<div class="area-section"><div class="area-section-title">船橋市4区の割り振り（${String.fromCharCode(65 + nI)}〜${String.fromCharCode(64 + numPeople)}）</div>${resultF.map(personBlock).join('')}</div>`;
+          + `<div class="area-section"><div class="area-section-title">市川市4区の割り振り（A〜${String.fromCharCode(64 + nIchikawa)}）</div>${resultI.map(personBlock).join('')}</div>`
+          + `<div class="area-section"><div class="area-section-title">船橋市4区の割り振り（${String.fromCharCode(65 + nIchikawa)}〜${String.fromCharCode(64 + totalPeople)}）</div>${resultF.map(personBlock).join('')}</div>`;
         return;
       }
 
       const area = data[areaKey];
       if (!area) { out.innerHTML = ''; return; }
       const districts = area.districts.map(d => ({ ...d, area: area.label }));
-      if (numPeople > districts.length) {
+      if (totalPeople > districts.length) {
         msg.textContent = `人数が地区数（${districts.length}）を超えています。${districts.length}人以下にしてください。`;
         msg.style.display = 'block';
       }
-      const result = assignNearby(districts, Math.min(numPeople, districts.length), 0);
+      const result = assignNearby(districts, Math.min(totalPeople, districts.length), 0);
       out.innerHTML = mapLinksHtml + result.map(personBlock).join('');
     }
 
+    function syncCountVisibility() {
+      const areaKey = document.getElementById('area').value;
+      const bothCounts = document.getElementById('bothCounts');
+      const count = document.getElementById('count');
+      if (areaKey === 'both') {
+        bothCounts.style.display = 'flex';
+        count.style.display = 'none';
+      } else {
+        bothCounts.style.display = 'none';
+        count.style.display = 'block';
+      }
+    }
+
     document.getElementById('area').addEventListener('change', () => {
+      syncCountVisibility();
       render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
     });
     document.getElementById('count').addEventListener('input', () => {
       render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
+    });
+    document.getElementById('countIchikawa').addEventListener('input', () => {
+      render(document.getElementById('area').value, 1);
+    });
+    document.getElementById('countFunabashi').addEventListener('input', () => {
+      render(document.getElementById('area').value, 1);
     });
 
     document.addEventListener('click', (e) => {
@@ -410,6 +443,7 @@
     (async () => {
       try {
         data = await loadData();
+        syncCountVisibility();
         render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
       } catch (e) {
         document.getElementById('out').innerHTML = `<p class="error">${e.message}<br>ローカルで開いている場合は、ターミナルでこのフォルダに移動し、<code>python3 -m http.server 8000</code> を実行してから <a href="http://localhost:8000" target="_blank" rel="noopener">http://localhost:8000</a> を開いてください。</p>`;
