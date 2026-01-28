@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ポスター貼り 地区割り振り｜千葉県4区</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --accent: #58a6ff;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; color: var(--muted); }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      font-size: 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+    }
+    input[type="number"] { max-width: 8rem; }
+    .row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    .row > *:first-child { flex: 1; min-width: 160px; }
+    .assignments { margin-top: 1.25rem; }
+    .area-section { margin-top: 1.5rem; }
+    .area-section:first-of-type { margin-top: 0; }
+    .area-section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .person-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.6rem;
+    }
+    .person-name {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.4rem;
+      font-size: 1.05rem;
+    }
+    .person-meta { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .district-list { font-size: 0.9rem; line-height: 1.6; }
+    .district-item {
+      display: inline-block;
+      position: relative;
+      margin: 0.15rem 0.15rem 0 0;
+      vertical-align: top;
+    }
+    .district-btn {
+      display: inline-block;
+      background: rgba(88,166,255,0.12);
+      color: var(--accent);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      border: none;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+    .district-btn:hover { text-decoration: underline; }
+    .district-popover {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      padding: 0.35rem 0;
+      min-width: 10rem;
+      z-index: 10;
+    }
+    .district-item.is-open .district-popover { display: block; }
+    .district-popover a {
+      display: block;
+      padding: 0.4rem 0.75rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .district-popover a:hover { background: rgba(88,166,255,0.1); }
+    .map-links {
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .map-links a { color: var(--accent); margin-right: 0.75rem; }
+    .error { color: #f85149; font-size: 0.9rem; margin-top: 0.5rem; }
+    .loading { color: var(--muted); }
+    footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ポスター貼り 地区割り振り</h1>
+    <p class="sub">千葉県第4区　衆院選ポスター掲示マップに基づく割り当て</p>
+
+    <div class="card">
+      <label for="area">対象地域</label>
+      <select id="area">
+        <option value="ichikawa_4">市川市4区（31区・229箇所）</option>
+        <option value="funabashi_4">船橋市4区（30区・235箇所）</option>
+        <option value="both">両方まとめて</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <label for="count">ポスター貼りの人数</label>
+      <div class="row">
+        <input type="number" id="count" min="1" max="99" value="5" />
+      </div>
+      <p id="msg" class="error" style="display:none;"></p>
+    </div>
+
+    <div id="out" class="assignments"></div>
+
+    <footer>
+      データは市川市・船橋市のポスター掲示略図（PDF）に基づいています。公式の最新情報は各市選管にご確認ください。
+    </footer>
+  </div>
+
+  <script>
+    const AREA_NAMES = { ichikawa_4: '市川市4区', funabashi_4: '船橋市4区', both: '市川市4区・船橋市4区' };
+    let data = null;
+
+    async function loadData() {
+      const r = await fetch('data/districts.json');
+      if (!r.ok) throw new Error('data/districts.json を読み込めません');
+      return r.json();
+    }
+
+    /** 設置数がなるべく均等になるよう、地区を人数で割り振る。nameStartIndex で担当者ラベル（A,B,C…）の開始位置を指定可能 */
+    function assign(districts, numPeople, nameStartIndex = 0) {
+      const load = Array.from({ length: numPeople }, () => ({ spots: 0, voters: 0, list: [] }));
+      const names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(nameStartIndex, nameStartIndex + numPeople);
+      const bySpots = [...districts].sort((a, b) => b.spots - a.spots);
+      for (const d of bySpots) {
+        let i = 0;
+        for (let k = 1; k < numPeople; k++) if (load[k].spots < load[i].spots) i = k;
+        load[i].spots += d.spots;
+        load[i].voters += d.voters;
+        load[i].list.push(d);
+      }
+      return names.map((name, i) => ({ name, ...load[i] }));
+    }
+
+    function render(areaKey, numPeople) {
+      const out = document.getElementById('out');
+      const msg = document.getElementById('msg');
+      msg.style.display = 'none';
+
+      if (!data) {
+        out.innerHTML = '<p class="loading">データを読み込み中…</p>';
+        return;
+      }
+      if (numPeople < 1 || numPeople > 50) {
+        msg.textContent = '人数は 1～50 の間で入力してください。';
+        msg.style.display = 'block';
+        out.innerHTML = '';
+        return;
+      }
+
+      const cityLabel = (a) => (a && a.includes('市川')) ? '市川市' : '船橋市';
+      const gmaps = (d) => {
+        if (d.lat != null && d.lng != null) {
+          return 'https://www.google.com/maps?q=' + d.lat + ',' + d.lng + '&z=17';
+        }
+        return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(d.name + ' ' + cityLabel(d.area));
+      };
+      const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      const pdfBase = (d) => (d.area && d.area.includes('市川')) ? '03_市川市4区_ポス掲略図.pdf' : '04_船橋市4区_ポス掲略図.pdf';
+      const pdfPage = (d) => (d.area && d.area.includes('船橋')) ? (3 + 2 * d.id) : (3 + d.id);
+      const pdfUrl = (d) => pdfBase(d) + '#page=' + pdfPage(d);
+      const pdfLinks = [];
+      if (areaKey === 'ichikawa_4' || areaKey === 'both') pdfLinks.push('<a href="03_市川市4区_ポス掲略図.pdf" target="_blank" rel="noopener">市川市4区ポス掲略図（PDF）</a>');
+      if (areaKey === 'funabashi_4' || areaKey === 'both') pdfLinks.push('<a href="04_船橋市4区_ポス掲略図.pdf" target="_blank" rel="noopener">船橋市4区ポス掲略図（PDF）</a>');
+      const mapLinksHtml = pdfLinks.length ? `<div class="map-links">マップ: ${pdfLinks.join(' ')}　（地区名クリックで マップ該当ページ／地図 を選べます）</div>` : '';
+      const personBlock = ({ name, spots, voters, list }) => `
+        <div class="person-block">
+          <div class="person-name">${name}</div>
+          <div class="person-meta">${spots} 箇所　有権者およそ ${voters.toLocaleString()} 人</div>
+          <div class="district-list">
+            ${list.map(d => `
+              <span class="district-item">
+                <button type="button" class="district-btn" title="クリックで選択">${esc(d.id)}. ${esc(d.name)}（${d.spots}）</button>
+                <span class="district-popover">
+                  <a href="${pdfUrl(d)}" target="_blank" rel="noopener">マップ（${pdfPage(d)}ページ目）で見る</a>
+                  <a href="${gmaps(d)}" target="_blank" rel="noopener">Googleマップで見る</a>
+                </span>
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      if (areaKey === 'both') {
+        if (numPeople < 2) {
+          msg.textContent = '両方まとめての場合は、市川と船橋を別々の人が担当するため2人以上を入力してください。';
+          msg.style.display = 'block';
+          out.innerHTML = mapLinksHtml;
+          return;
+        }
+        const ichikawa = data.ichikawa_4.districts.map(d => ({ ...d, area: '市川市4区' }));
+        const funabashi = data.funabashi_4.districts.map(d => ({ ...d, area: '船橋市4区' }));
+        const totalSpots = data.ichikawa_4.total_spots + data.funabashi_4.total_spots;
+        const nI = Math.max(1, Math.min(numPeople - 1, Math.round(numPeople * data.ichikawa_4.total_spots / totalSpots)));
+        const nF = numPeople - nI;
+        const resultI = assign(ichikawa, Math.min(nI, ichikawa.length), 0);
+        const resultF = assign(funabashi, Math.min(nF, funabashi.length), nI);
+        if (numPeople > ichikawa.length + funabashi.length) {
+          msg.textContent = `人数が地区数（${ichikawa.length + funabashi.length}）を超えています。${ichikawa.length + funabashi.length}人以下にしてください。`;
+          msg.style.display = 'block';
+        }
+        out.innerHTML = mapLinksHtml
+          + `<div class="area-section"><div class="area-section-title">市川市4区の割り振り（A〜${String.fromCharCode(64 + nI)}）</div>${resultI.map(personBlock).join('')}</div>`
+          + `<div class="area-section"><div class="area-section-title">船橋市4区の割り振り（${String.fromCharCode(65 + nI)}〜${String.fromCharCode(64 + numPeople)}）</div>${resultF.map(personBlock).join('')}</div>`;
+        return;
+      }
+
+      const area = data[areaKey];
+      if (!area) { out.innerHTML = ''; return; }
+      const districts = area.districts.map(d => ({ ...d, area: area.label }));
+      if (numPeople > districts.length) {
+        msg.textContent = `人数が地区数（${districts.length}）を超えています。${districts.length}人以下にしてください。`;
+        msg.style.display = 'block';
+      }
+      const result = assign(districts, Math.min(numPeople, districts.length), 0);
+      out.innerHTML = mapLinksHtml + result.map(personBlock).join('');
+    }
+
+    document.getElementById('area').addEventListener('change', () => {
+      render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
+    });
+    document.getElementById('count').addEventListener('input', () => {
+      render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
+    });
+
+    document.addEventListener('click', (e) => {
+      const out = document.getElementById('out');
+      const btn = e.target.closest('.district-btn');
+      if (btn && out.contains(btn)) {
+        e.preventDefault();
+        const item = btn.closest('.district-item');
+        const wasOpen = item.classList.contains('is-open');
+        out.querySelectorAll('.district-item.is-open').forEach(el => el.classList.remove('is-open'));
+        if (!wasOpen) item.classList.add('is-open');
+      } else if (!e.target.closest('.district-item')) {
+        out.querySelectorAll('.district-item.is-open').forEach(el => el.classList.remove('is-open'));
+      }
+    });
+
+    (async () => {
+      try {
+        data = await loadData();
+        render(document.getElementById('area').value, parseInt(document.getElementById('count').value, 10) || 1);
+      } catch (e) {
+        document.getElementById('out').innerHTML = `<p class="error">${e.message}<br>ローカルで開いている場合は、ターミナルでこのフォルダに移動し、<code>python3 -m http.server 8000</code> を実行してから <a href="http://localhost:8000" target="_blank" rel="noopener">http://localhost:8000</a> を開いてください。</p>`;
+      }
+    })();
+  </script>
+</body>
+</html>
