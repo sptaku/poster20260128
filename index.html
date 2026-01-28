@@ -6,17 +6,25 @@
   <title>ポスター貼り 地区割り振り｜千葉県4区</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --text: #e6edf3;
-      --muted: #7d8590;
-      --accent: #58a6ff;
-      --border: #30363d;
+      /* Light theme */
+      --bg0: #f6f8fb;
+      --bg1: #eef2ff;
+      --surface: rgba(255, 255, 255, 0.92);
+      --surface-strong: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --accent-2: #7c3aed;
+      --border: rgba(15, 23, 42, 0.12);
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
+      --shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.08);
     }
     * { box-sizing: border-box; }
     body {
-      font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, var(--bg1), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(124,58,237,0.10), transparent 55%),
+                  var(--bg0);
       color: var(--text);
       margin: 0;
       min-height: 100vh;
@@ -27,6 +35,7 @@
       font-size: 1.35rem;
       font-weight: 600;
       margin-bottom: 0.5rem;
+      letter-spacing: 0.01em;
     }
     .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
     .card {
@@ -35,16 +44,24 @@
       border-radius: 10px;
       padding: 1.25rem;
       margin-bottom: 1rem;
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(8px);
     }
     label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; color: var(--muted); }
     select, input[type="number"] {
       width: 100%;
       padding: 0.6rem 0.75rem;
       font-size: 1rem;
-      background: var(--bg);
+      background: var(--surface-strong);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
+      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    }
+    select:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: rgba(37,99,235,0.45);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
     }
     input[type="number"] { max-width: 8rem; }
     .row { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
@@ -61,15 +78,24 @@
       border-bottom: 1px solid var(--border);
     }
     .person-block {
-      background: var(--bg);
+      background: var(--surface-strong);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 0.9rem 1rem;
       margin-bottom: 0.6rem;
+      box-shadow: var(--shadow-soft);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    .person-block:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
     }
     .person-name {
       font-weight: 600;
-      color: var(--accent);
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
       margin-bottom: 0.4rem;
       font-size: 1.05rem;
     }
@@ -83,14 +109,15 @@
     }
     .district-btn {
       display: inline-block;
-      background: rgba(88,166,255,0.12);
-      color: var(--accent);
+      background: linear-gradient(180deg, rgba(37,99,235,0.12), rgba(124,58,237,0.08));
+      color: #1d4ed8;
       padding: 0.15rem 0.5rem;
       border-radius: 4px;
-      border: none;
+      border: 1px solid rgba(37,99,235,0.18);
       font: inherit;
       cursor: pointer;
       text-align: left;
+      box-shadow: 0 1px 0 rgba(15,23,42,0.04);
     }
     .district-btn:hover { text-decoration: underline; }
     .district-popover {
@@ -99,10 +126,10 @@
       left: 0;
       top: 100%;
       margin-top: 2px;
-      background: var(--surface);
+      background: var(--surface-strong);
       border: 1px solid var(--border);
       border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow);
       padding: 0.35rem 0;
       min-width: 10rem;
       z-index: 10;
@@ -115,7 +142,7 @@
       text-decoration: none;
       font-size: 0.9rem;
     }
-    .district-popover a:hover { background: rgba(88,166,255,0.1); }
+    .district-popover a:hover { background: rgba(37,99,235,0.08); }
     .map-links {
       margin-bottom: 1rem;
       font-size: 0.85rem;
