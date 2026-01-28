@@ -173,8 +173,8 @@
       return r.json();
     }
 
-    /** 設置数がなるべく均等になるよう、地区を人数で割り振る。nameStartIndex で担当者ラベル（A,B,C…）の開始位置を指定可能 */
-    function assign(districts, numPeople, nameStartIndex = 0) {
+    /** 設置数がなるべく均等になるよう、地区を人数で割り振る（距離は考慮しない）。nameStartIndex で担当者ラベル（A,B,C…）の開始位置を指定可能 */
+    function assignBalanced(districts, numPeople, nameStartIndex = 0) {
       const load = Array.from({ length: numPeople }, () => ({ spots: 0, voters: 0, list: [] }));
       const names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(nameStartIndex, nameStartIndex + numPeople);
       const bySpots = [...districts].sort((a, b) => b.spots - a.spots);
@@ -185,6 +185,65 @@
         load[i].voters += d.voters;
         load[i].list.push(d);
       }
+      return names.map((name, i) => ({ name, ...load[i] }));
+    }
+
+    /**
+     * できるだけ近い地区がまとまるように割り振る。
+     * - lat/lng がある地区: 中心からの角度で並べ、連続区間ごとに分割（近傍がまとまりやすい）
+     * - lat/lng がない地区: 最終的に設置数が少ない人へ順に追加
+     * - 座標が少なすぎる場合は assignBalanced にフォールバック
+     */
+    function assignNearby(districts, numPeople, nameStartIndex = 0) {
+      const names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').slice(nameStartIndex, nameStartIndex + numPeople);
+      const load = Array.from({ length: numPeople }, () => ({ spots: 0, voters: 0, list: [] }));
+
+      const withCoord = [];
+      const withoutCoord = [];
+      for (const d of districts) {
+        if (d.lat != null && d.lng != null) withCoord.push(d);
+        else withoutCoord.push(d);
+      }
+      if (withCoord.length < Math.min(numPeople, 2)) {
+        return assignBalanced(districts, numPeople, nameStartIndex);
+      }
+
+      const totalSpotsAll = districts.reduce((s, d) => s + d.spots, 0);
+      const targetSpots = totalSpotsAll / numPeople;
+
+      const meanLat = withCoord.reduce((s, d) => s + d.lat, 0) / withCoord.length;
+      const meanLng = withCoord.reduce((s, d) => s + d.lng, 0) / withCoord.length;
+
+      const ordered = withCoord
+        .map(d => ({ d, a: Math.atan2(d.lat - meanLat, d.lng - meanLng) }))
+        .sort((x, y) => x.a - y.a)
+        .map(x => x.d);
+
+      let gi = 0;
+      for (let idx = 0; idx < ordered.length; idx++) {
+        const d = ordered[idx];
+        const remainingItems = ordered.length - idx;
+        const remainingGroups = numPeople - gi;
+
+        // 現グループが目標を超えたら次へ（ただし残りグループに最低1つずつ残せる場合）
+        if (gi < numPeople - 1 && load[gi].spots >= targetSpots && remainingItems > remainingGroups) {
+          gi++;
+        }
+
+        load[gi].spots += d.spots;
+        load[gi].voters += d.voters;
+        load[gi].list.push(d);
+      }
+
+      // 座標がない地区は、設置数が少ない人に追加
+      for (const d of withoutCoord) {
+        let i = 0;
+        for (let k = 1; k < numPeople; k++) if (load[k].spots < load[i].spots) i = k;
+        load[i].spots += d.spots;
+        load[i].voters += d.voters;
+        load[i].list.push(d);
+      }
+
       return names.map((name, i) => ({ name, ...load[i] }));
     }
 
@@ -218,7 +277,7 @@
       const pdfLinks = [];
       if (areaKey === 'ichikawa_4' || areaKey === 'both') pdfLinks.push('<a href="03_市川市4区_ポス掲略図.pdf" target="_blank" rel="noopener">市川市4区ポス掲略図（PDF）</a>');
       if (areaKey === 'funabashi_4' || areaKey === 'both') pdfLinks.push('<a href="04_船橋市4区_ポス掲略図.pdf" target="_blank" rel="noopener">船橋市4区ポス掲略図（PDF）</a>');
-      const mapLinksHtml = pdfLinks.length ? `<div class="map-links">マップ: ${pdfLinks.join(' ')}　（地区名クリックで マップ該当ページ／地図 を選べます）</div>` : '';
+      const mapLinksHtml = pdfLinks.length ? `<div class="map-links">マップ: ${pdfLinks.join(' ')}　（地区名クリックで マップ該当ページ／地図 を選べます。割り振りは近接優先）</div>` : '';
       const personBlock = ({ name, spots, voters, list }) => `
         <div class="person-block">
           <div class="person-name">${name}</div>
@@ -249,8 +308,8 @@
         const totalSpots = data.ichikawa_4.total_spots + data.funabashi_4.total_spots;
         const nI = Math.max(1, Math.min(numPeople - 1, Math.round(numPeople * data.ichikawa_4.total_spots / totalSpots)));
         const nF = numPeople - nI;
-        const resultI = assign(ichikawa, Math.min(nI, ichikawa.length), 0);
-        const resultF = assign(funabashi, Math.min(nF, funabashi.length), nI);
+        const resultI = assignNearby(ichikawa, Math.min(nI, ichikawa.length), 0);
+        const resultF = assignNearby(funabashi, Math.min(nF, funabashi.length), nI);
         if (numPeople > ichikawa.length + funabashi.length) {
           msg.textContent = `人数が地区数（${ichikawa.length + funabashi.length}）を超えています。${ichikawa.length + funabashi.length}人以下にしてください。`;
           msg.style.display = 'block';
@@ -268,7 +327,7 @@
         msg.textContent = `人数が地区数（${districts.length}）を超えています。${districts.length}人以下にしてください。`;
         msg.style.display = 'block';
       }
-      const result = assign(districts, Math.min(numPeople, districts.length), 0);
+      const result = assignNearby(districts, Math.min(numPeople, districts.length), 0);
       out.innerHTML = mapLinksHtml + result.map(personBlock).join('');
     }
 
